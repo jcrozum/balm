@@ -75,7 +75,7 @@ class SuccessionDiagram():
                     all_fixed_vars = fixed_vars.copy()
                     all_fixed_vars.update(self.G.nodes[sd_node]['fixed_vars'])
                     fixed_vars_perc, _ = percolate_space(
-                        self.network, all_fixed_vars)
+                        self.network, all_fixed_vars, strict_percolation=False)
 
                     # TODO: check to see if the reduced network has already been found
                     perc_match_ind = None

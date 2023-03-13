@@ -255,4 +255,3 @@ def petri_net_as_automata_network(petri_net: DiGraph) -> str:
         automata_network += rule
     
     return automata_network
-
