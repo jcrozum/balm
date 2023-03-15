@@ -489,6 +489,10 @@ def test_fvs_accuracy_SIPC():
     nfvs_mtsNFVS = find_minimum_NFVS(bn_real)
 
     assert len(nfvs_mtsNFVS) <= 13 # the result of mtsNFVS is 13
+
+    for _i in range(10):
+        nfvs = find_minimum_NFVS(bn_real)
+        assert nfvs == nfvs_mtsNFVS
     
     for _i in range(10):
         nfvs = find_minimum_NFVS(bn_real)
