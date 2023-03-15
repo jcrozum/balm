@@ -26,7 +26,6 @@ def trappist_async(
         spaces are returned to the supplied `on_solution` callback. You can stop the enumeration by
         returning `False` from this callback.
     """
-
     if type(network) == BooleanNetwork:
         bn = network
         petri_net = network_to_petrinet(network)
@@ -59,7 +58,6 @@ def trappist_async(
 
     ctl.ground()
     result = ctl.solve(yield_=True)
-    
     if type(result) == SolveHandle:
         with result as iterator:
             for model in iterator:                    
@@ -161,9 +159,8 @@ def _create_clingo_constraints(
     # "0" specifies that all solutions should be listed (we implement the limit
     # later using callbacks).
     # TODO: Explain what remaining options mean and why we need them?
-
     ctl = Control(["0", "--heuristic=Domain", "--enum-mod=domRec", dom_mod])
-    
+
     # Declare places and their conflicts based on network variables.
     for var_name in variables:
         p_name = variable_to_place(var_name, positive=True)
@@ -333,6 +330,7 @@ def compute_fixed_point_reduced_STG_async(
         `on_solution` callback. You can stop the enumeration by
         returning `False` from this callback.
     """
+
     # Build a copy of the original Petri net where the
     # variables in the retained set can only change their 
     # value towards the "retain value".

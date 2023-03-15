@@ -64,6 +64,7 @@ def test_network_fixed_point_reduced_STG():
     """)
 
     petri_net = network_to_petrinet(bn)
+
     avoid_subspace_1 = {"x1" : 1, "x2" : 1}
     avoid_subspace_2 = {}
     avoid_subspace_3 = {"x2" : 1}
