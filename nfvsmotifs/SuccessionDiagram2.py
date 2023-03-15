@@ -1,5 +1,10 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from typing import Set
+
+
 import networkx as nx # type: ignore
 
 from biodivine_aeon import BooleanNetwork  # type: ignore
@@ -24,15 +29,15 @@ class SuccessionDiagram():
         self.G = nx.DiGraph()
         # A dictionary used for uniqueness checks on the nodes of the succession diagram.
         # See `SuccessionDiagram.ensure_node` for details.
-        self.node_indices = {}
+        self.node_indices: dict[int, int] = {}
         # Set of diagram node IDs that have already been expanded (i.e. their successors 
         # are already known).
-        self.expanded = set()
+        self.expanded: Set[int] = set()
         # Set of diagram node IDs where attractor search has already been performed.    
-        self.attr_expanded = set()
+        self.attr_expanded: Set[int] = set()
         # Maps node IDs to lists of attractor "seed" vertices. Note that even if attractor 
         # search was performed, the node ID may not be present if no attractors were found.
-        self.attractors = {}        
+        self.attractors: dict[int, list[dict[str, int]]] = {}        
 
         self.ensure_node(None, {})
 
