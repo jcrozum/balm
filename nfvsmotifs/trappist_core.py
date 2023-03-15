@@ -20,13 +20,14 @@ def trappist_async(
     reverse_time: bool = False,   
     ensure_subspace: dict[str, int] = {},
     avoid_subspaces: list[dict[str, int]] = [], 
+    petri_net: DiGraph | None = None, 
 ):
     """
         The same as the `trappist` method, but instead of returning a list of spaces as a result, the
         spaces are returned to the supplied `on_solution` callback. You can stop the enumeration by
         returning `False` from this callback.
     """
-    petri_net = network_to_petrinet(network)
+    petri_net = network_to_petrinet(network) if (petri_net is None) else petri_net
         
     source_nodes = []
     for var in network.variables():
@@ -51,7 +52,8 @@ def trappist(
     reverse_time: bool = False, 
     solution_limit: int | None = None,
     ensure_subspace: dict[str, int] = {},
-    avoid_subspaces: list[dict[str, int]] = [],    
+    avoid_subspaces: list[dict[str, int]] = [],   
+    petri_net: DiGraph | None = None, 
 ) -> list[dict[str, int]]:
     """
         Solve the given `problem` for the given `network` using the Trappist algorithm, internally relying on the 
@@ -72,7 +74,7 @@ def trappist(
     def save_result(x):
         results.append(x)
         return solution_limit == None or len(results) < solution_limit        
-    trappist_async(network, on_solution=save_result, problem=problem, reverse_time=reverse_time, ensure_subspace=ensure_subspace, avoid_subspaces=avoid_subspaces)
+    trappist_async(network, on_solution=save_result, problem=problem, reverse_time=reverse_time, ensure_subspace=ensure_subspace, avoid_subspaces=avoid_subspaces, petri_net=petri_net)
     return results
 
 def _clingo_model_to_space(model: Model) -> dict[str, int]:    
