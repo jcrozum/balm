@@ -11,7 +11,7 @@ PIP=./env/bin/pip3
 
 # Install fixed versions of relevant dependencies 
 # to aid reproducibility.
-$PIP install -r ./dependencies/requirements.txt
+$PIP install -r ./requirements.txt
 
 # Install AEON
 $PIP install biodivine_aeon==0.2.0a4
