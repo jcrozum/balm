@@ -1,0 +1,1509 @@
+biobalm.succession_diagram
+==========================
+
+.. py:module:: biobalm.succession_diagram
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   biobalm.succession_diagram.BooleanSpace
+
+
+Classes
+-------
+
+.. autoapisummary::
+
+   biobalm.succession_diagram.NodeData
+   biobalm.succession_diagram.SuccessionDiagramState
+   biobalm.succession_diagram.SuccessionDiagramConfiguration
+   biobalm.succession_diagram.SuccessionDiagram
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   biobalm.succession_diagram.compute_attractor_candidates
+   biobalm.succession_diagram.compute_attractors_symbolic
+   biobalm.succession_diagram.expand_attractor_seeds
+   biobalm.succession_diagram.expand_bfs
+   biobalm.succession_diagram.expand_dfs
+   biobalm.succession_diagram.expand_minimal_spaces
+   biobalm.succession_diagram.expand_source_SCCs
+   biobalm.succession_diagram.expand_source_blocks
+   biobalm.succession_diagram.expand_to_target
+   biobalm.succession_diagram.cleanup_network
+   biobalm.succession_diagram.feedback_vertex_set
+   biobalm.succession_diagram.source_SCCs
+   biobalm.succession_diagram.extract_source_variables
+   biobalm.succession_diagram.network_to_petrinet
+   biobalm.succession_diagram.restrict_petrinet_to_subspace
+   biobalm.succession_diagram.percolate_network
+   biobalm.succession_diagram.percolate_space
+   biobalm.succession_diagram.space_unique_key
+   biobalm.succession_diagram.trappist
+
+
+Module Contents
+---------------
+
+.. py:function:: compute_attractor_candidates(sd: biobalm.succession_diagram.SuccessionDiagram, node_id: int, greedy_asp_minification: bool, simulation_minification: bool, pint_minification: bool) -> list[biobalm.types.BooleanSpace]
+
+   Compute an optimized list of candidate states that is guaranteed
+   to cover every attractor in the specified SD node.
+
+   It should hold that for every attractor in the node's sub-space outside
+   of the child sub-spaces (if known), the list contains at least one state
+   from this attractor. However, it is not guaranteed that each candidate
+   covers some attractor, so a non-empty list of candidates can
+   still correspond to an empty list of attractors.
+
+   The method starts by computing an NFVS of the network percolated to the
+   node's space, and then assigns each NFVS node a value towards which
+   it tends to. This transformation satisfies that the fixed-points in the
+   resulting network cover the attractors in the original sub-space.
+
+   Subsequently, the method can further optimize this set of candidates.
+
+   Greedy ASP minification
+   -----------------------
+   Depending on which values are chosen for the NFVS nodes, a different set of
+   candidates is obtained. This optimization method flips the initial NFVS node
+   values and retains modifications that lead to a smaller candidate set, until
+   a local minimum is achieved.
+
+   Simulation minification
+   -----------------------
+   It is often possible to reduce the candidate set using a pseudo-random walk
+   which eventually leads to one of the child spaces, or to one of the existing
+   candidate states.
+
+   Pint minification
+   -----------------
+   The tool `pint` can perform (incomplete) reachability check for any network
+   state, hence we can also use it to reduce the list of candidate states.
+   This option is only available if pint is actually installed.
+
+   :param sd: The succession diagram in question.
+   :type sd: SuccessionDiagram
+   :param node_id: An ID of an SD node for which we are computing the candidates.
+   :type node_id: int
+   :param greedy_asp_minification: Whether to enable the iterative ASP-based minification.
+   :type greedy_asp_minification: bool
+   :param simulation_minification: Whether to enable simulation minification.
+   :type simulation_minification: bool
+   :param pint_minification: Whether to enable pint minification.
+   :type pint_minification: bool
+
+   :returns: The list of attractor candidate states.
+   :rtype: list[BooleanSpace]
+
+
+.. py:function:: compute_attractors_symbolic(sd: biobalm.succession_diagram.SuccessionDiagram, node_id: int, candidate_states: list[biobalm.types.BooleanSpace], seeds_only: bool = False) -> tuple[list[biobalm.types.BooleanSpace], list[biodivine_aeon.VertexSet] | None]
+
+   Uses exhaustive symbolic reachability to eliminate spurious candidate states
+   and to compute the exact attractor sets.
+
+   :param sd: The succession diagram in question.
+   :type sd: SuccessionDiagram
+   :param node_id: An ID of an SD node for which we are computing the candidates.
+   :type node_id: int
+   :param candidate_states: The list of candidate states covering the attractors in the
+                            given node.
+   :type candidate_states: bool
+   :param seeds_only: If `True`, the method can terminate early once it is guaranteed that
+                      all seeds have been identified. In such case, the list of returned sets
+                      is `None`.
+   :type seeds_only: bool
+
+   :returns: The list of attractor seed states and corresponding attractor sets (if computed).
+   :rtype: tuple[list[BooleanSpace], list[VertexSet] | None]
+
+
+.. py:function:: expand_attractor_seeds(sd: biobalm.succession_diagram.SuccessionDiagram, size_limit: int | None = None)
+
+   See `SuccessionDiagram.expand_attractor_seeds` for documentation.
+
+
+.. py:function:: expand_bfs(sd: biobalm.succession_diagram.SuccessionDiagram, node_id: int | None = None, bfs_level_limit: int | None = None, size_limit: int | None = None) -> bool
+
+   See `SuccessionDiagram.expand_bfs` for documentation.
+
+
+.. py:function:: expand_dfs(sd: biobalm.succession_diagram.SuccessionDiagram, node_id: int | None = None, dfs_stack_limit: int | None = None, size_limit: int | None = None) -> bool
+
+   See `SuccessionDiagram.expand_dfs` for documentation.
+
+
+.. py:function:: expand_minimal_spaces(sd: biobalm.succession_diagram.SuccessionDiagram, size_limit: int | None = None) -> bool
+
+   See `SuccessionDiagram.expand_minimal_spaces` for documentation.
+
+
+.. py:function:: expand_source_SCCs(sd: biobalm.succession_diagram.SuccessionDiagram, check_maa: bool, recursion: int = 0, expander: ExpanderFunctionType | None = None) -> bool
+
+   1. percolate
+   2. find source nodes, fix combinations and then percolate
+   3. at every level, find all source SCCs, expand them
+   4. when there are no more SCCs, expand in a usual way.
+
+   TODO: it will be rare especially for empirical models,
+   but there can be source SCCs even before fixing source node combinations.
+   It could be useful to find them first, calculate scc_sd and store them somewhere,
+   rather than calculating the same thing for every source node combination
+
+   :param check_maa - if True: expanding the sd with source SCCs.
+                               This grants significant speedup when searching for all attractors.
+                               if False, ignores motif avoidant attractors in source SCCs.
+   :param check for motif avoidant attractors when: expanding the sd with source SCCs.
+                                                    This grants significant speedup when searching for all attractors.
+                                                    if False, ignores motif avoidant attractors in source SCCs.
+
+
+.. py:function:: expand_source_blocks(sd: biobalm.succession_diagram.SuccessionDiagram, check_maa: bool = True) -> bool
+
+   Base correctness assumptions:
+
+    - Expanding two minimal blocks is always independent.
+    -
+
+
+.. py:function:: expand_to_target(sd: biobalm.succession_diagram.SuccessionDiagram, target: biobalm.types.BooleanSpace, size_limit: int | None = None)
+
+   See `SuccessionDiagram.exapnd_to_target` for documentation.
+
+
+.. py:function:: cleanup_network(network: biodivine_aeon.BooleanNetwork) -> biodivine_aeon.BooleanNetwork
+
+   Prepare a `BooleanNetwork` object for use in a `SuccessionDiagram`. This
+   mainly ensures that the network does not use parameters and fixes all static
+   constraints to ensure that they are actually correct.
+
+   :param network: The Boolean network to be prepared.
+   :type network: BooleanNetwork
+
+   :returns: The prepared network.
+   :rtype: BooleanNetwork
+
+
+.. py:function:: feedback_vertex_set(network: biodivine_aeon.RegulatoryGraph | networkx.DiGraph, parity: Literal['positive', 'negative'] | None = None, subgraph: Sequence[str | biodivine_aeon.VariableId] | None = None) -> list[str]
+
+   Compute an approximately minimal feedback vertex set (FVS).
+
+   Uses the implementation of `biodivine_aeon`.
+
+   An FVS is a set of nodes in a network whose removal from the network
+   results in an acyclic network. An FVS is minimal if it does not contain any
+   FVS as a proper subset. This method uses a heuristic approach to attempt to find a
+   minimal FVS. The result is guaranteed to be a feedback vertex set, but it might not be minimal.
+
+   A paritiy can be specified. If the parity is specified, only cycles of the
+   specified parity are considered (e.g. if `parity='negative'`, there can still be positive
+   cycles in the graph not covered by the returned feedback vertex set).
+
+   The method is deterministic (the same pseudo-optimal FVS is returned every time).
+
+   :param network: Network to consider. If a `DiGraph` is given, it is converted to a `RegulatoryGraph`.
+   :type network: RegulatoryGraph | DiGraph
+   :param parity: Must be `"positive"`, `"negative"`, or `None` (default). If
+                  `"positive"`, only cycles with an even number of negative edges are
+                  considered. If `"negative"`, only cycles with an odd number of negative
+                  edges are considered. Edges with no monotonicity are counted as both
+                  positive and negative. Otherwise, all cycles are considered.
+   :type parity: Literal["positive";, "negative"] | None, optional
+   :param subgraph: A list of network variables (either string names or AEON `VariableId`
+                    objects are fine). If given, the result is the FVS of the sub-graph induced by
+                    these network nodes.
+   :type subgraph: Sequence[str  |  VariableId] | None, optional
+
+   :returns: A list of node names representing the smallest FVS found during the
+             search. Sorted in the same order as in the input network (usually
+             lexicographically).
+   :rtype: list[str]
+
+   .. rubric:: Examples
+
+   >>> import biobalm
+   >>> from biobalm.interaction_graph_utils import feedback_vertex_set
+   >>> sd = biobalm.SuccessionDiagram.from_rules("""
+   ...     A, B
+   ...     B, A
+   ...     C, D
+   ...     D, !C""")
+   >>> feedback_vertex_set(sd.network)
+   ['A', 'C']
+   >>> feedback_vertex_set(sd.network, parity="positive")
+   ['A']
+   >>> feedback_vertex_set(sd.network, parity="negative")
+   ['C']
+
+
+.. py:function:: source_SCCs(bn: biodivine_aeon.BooleanNetwork) -> list[list[str]]
+
+   Find source SCCs of the given `BooleanNetwork`.
+
+   Here, SCC stands for "strongly connected component". An SCC is a source SCC
+   if it has no incoming edges.
+
+   :param bn: The Boolean network to be examined.
+   :type bn: BooleanNetwork
+
+   :returns: The list of source SCCs.
+   :rtype: list[list[str]]
+
+
+.. py:function:: extract_source_variables(encoded_network: networkx.DiGraph) -> list[str]
+
+   List variable names that represent source nodes of the encoded network.
+
+   Source nodes are those nodes with an identity update function.
+
+   :param encoded_network: The Petri net encoded Boolean network.
+   :type encoded_network: DiGraph
+
+   :returns: The list of source variable names.
+   :rtype: list[str]
+
+
+.. py:function:: network_to_petrinet(network: biodivine_aeon.BooleanNetwork, symbolic_context: biodivine_aeon.SymbolicContext | None = None) -> networkx.DiGraph
+
+   Convert a Boolean network to a Petri net.
+
+   Converts a `biodivine_aeon.BooleanNetwork` to a `DiGraph` representing a Petri net encoding
+   of the original network. For details about the encoding, see module
+   description.
+
+   Note that the given network needs to have "sanitized" names, otherwise the
+   method will fail (see `sanitize_network_names` in this module).
+
+   The operation uses translation through `biodivine_aeon.Bdd` to generate a
+   disjunctive normal form of the network's update functions. This is
+   facilitated by `biodivine_aeon.SymbolicContext`. If a suitable context already
+   exists, it can be provided as the second argument. Otherwise it will be
+   created.
+
+   :param network: The network to convert.
+   :type network: BooleanNetwork
+   :param symbolic_context: The context used for the symbolic conversion, as an
+                            `biodivine_aeon.SymbolicContext` object. This is a mapping from the
+                            network nodes to BDD variables that preserves variable ordering in BDDs.
+                            If not given, a new one will be created from the network.
+   :type symbolic_context: SymbolicContext | None
+
+   :returns: The Petri net encoding of the given network.
+   :rtype: DiGraph
+
+
+.. py:function:: restrict_petrinet_to_subspace(petri_net: networkx.DiGraph, sub_space: biobalm.types.BooleanSpace) -> networkx.DiGraph
+
+   Create a copy of a Petri net restricted to a sub-space.
+
+   Creates a copy of the given Petri net, but with the variables given in
+   `sub_space` fixed to their respective values.
+
+   Note that this completely eliminates the constant variables from the Petri
+   net, but it does not perform any further constant propagation or
+   percolation. Variables that are fixed in the `sub_space` but do not exist in
+   the Petri net are ignored.
+
+   The `sub_space` can contain variables that do not appear
+   in the `petri_net`. Such variables are simply ignored.
+
+   :param petri_net: The Petri net to restrict.
+   :type petri_net: DiGraph
+   :param sub_space: The sub-space to restrict the Petri net to.
+   :type sub_space: BooleanSpace
+
+   :returns: The restricted Petri net.
+   :rtype: DiGraph
+
+
+.. py:function:: percolate_network(bn: biodivine_aeon.BooleanNetwork, space: biobalm.types.BooleanSpace, symbolic_network: biodivine_aeon.AsynchronousGraph | None = None, remove_constants: bool = False) -> biodivine_aeon.BooleanNetwork
+
+   Reduces a Boolean network by percolating a given space.
+
+   Takes a `BooleanNetwork` and a `BooleanSpace`. It then produces a new network with
+   update functions percolated based on the supplied space.
+
+   The dynamics of the resulting network correspond to the dynamics of the
+   network obtained by percolating the given space. If the space (or the
+   percolated space) is a trap space, then the resulting dynamics are a
+   subgraph of the original network's state transition graph. Otherwise, the
+   dynamics correspond to the effects of an external intervention.
+
+   The percolation process is based on BDD conversion. For this purpose, an optional
+   `SymbolicContext` can be provided. If not given, a temporary `SymbolicContext` will
+   be created instead. Note that this is necessary to resolve non-trivial tautologies or
+   contradictions that can arise once the variables from `space` are fixed.
+
+   :param bn: The network to percolate.
+   :type bn: BooleanNetwork
+   :param space: The space to percolate.
+   :type space: BooleanSpace
+   :param symbolic_network: An optional symbolic representation to use to perform the percolation. If not
+                            given, a temporary one will be created from `bn`.
+   :type symbolic_network: AsynchronousGraph | None
+   :param remove_constants: If `True`, then the constants are removed from the resulting network. By
+                            default, `False`.
+   :type remove_constants: bool
+
+   :returns: The percolated network.
+   :rtype: BooleanNetwork
+
+
+.. py:function:: percolate_space(network: biodivine_aeon.AsynchronousGraph, space: biobalm.types.BooleanSpace) -> biobalm.types.BooleanSpace
+
+   Percolates a space through a Boolean network.
+
+   Takes a symbolic `AsynchronousGraph` and a `BooleanSpace`. It then percolates
+   any values that are effectively constant within the `network` assuming the variables
+   from `space` are fixed accordingly.
+
+   If the argument is a trap space, then the result is a subspace of the
+   argument and is also a trap space.
+
+   However, when the argument is a general space, the percolation can actually
+   lead "outside" of the original space. In such case, the original fixed value
+   is *not* modified and the conflict will remain in the resulting space.
+
+   :param network: A symbolic representation of the Boolean network (from which state
+                   transitions can be generated) in which the percolation is performed. If
+                   needed, an `AsynchronousGraph` object can be constructed from a
+                   `BooleanNetwork` via `biodivine_aeon.AsynchronousGraph(bn)`.
+   :type network: AsynchronousGraph
+   :param space: The space to percolate.
+   :type space: BooleanSpace
+
+   :returns: The percolated space.
+   :rtype: BooleanSpace
+
+
+.. py:function:: space_unique_key(space: biobalm.types.BooleanSpace, network: biodivine_aeon.BooleanNetwork) -> int
+
+   Provide a unique hash key for the provided space in a given network.
+
+   Computes an integer which is a unique representation of the provided `space`
+   (with respect to the given `network`).
+
+   This integer key can be used instead of the original `space` in places where
+   dictionaries are not allowed, such as a key within a larger dictionary, or
+   a sorting key.
+
+   Note that when used for sorting, this key essentially implements a particular
+   form of lexicographic ordering on spaces. This is always a total ordering
+   (there is no ambiguity).
+
+   :param space: The space to encode.
+   :type space: BooleanSpace
+   :param network: The network in which the space is defined.
+   :type network: BooleanNetwork
+
+   :returns: A unique key for the space.
+   :rtype: int
+
+
+.. py:function:: trappist(network: biodivine_aeon.BooleanNetwork | networkx.DiGraph, problem: Literal['min', 'max', 'fix'] = 'min', reverse_time: bool = False, solution_limit: int | None = None, ensure_subspace: biobalm.types.BooleanSpace | None = None, avoid_subspaces: list[biobalm.types.BooleanSpace] | None = None, optimize_source_variables: list[str] | None = None) -> list[biobalm.types.BooleanSpace]
+
+   Trap space solver for Boolean networks.
+
+   Solves the given `problem` for the given `network` using the Trappist
+   algorithm, internally relying on the Python bindings of the `clingo` ASP
+   solver.
+
+   The `problem` can be either `"min"`, `"max"` or `"fix"`, corresponding to
+   finding all minimal trap spaces (`"min"`), maximal trap spaces (`"max"`), or
+   fixed points (`"fix"`).
+
+   The result is a list of spaces represented as :class:`BooleanSpace<biobalm.types.BooleanSpace>`
+   dictionaries. If you want to avoid enumerating all solutions explicitly as one list, you can use
+   :func:`trappist_async` which has a similar API but can yield solutions one by one.
+
+   Finally, recall that the supplied network must have its names sanitized (see
+   :mod:`petri_net_translation<biobalm.petri_net_translation>` module).
+
+
+   :param network: A Boolean network or a Petri net compatible with the encoding in
+                   :mod:`petri_net_translation<biobalm.petri_net_translation>` module. The behaviour is undefined for other
+                   `DiGraph` instances.
+   :type network: BooleanNetwork | DiGraph
+   :param problem: The problem to solve. Finds all minimal trap spaces (`"min"`), maximal
+                   trap spaces (`"max"`), or fixed points (`"fix"`). The default is `"min"`.
+   :type problem: Literal["min", "max", "fix"], optional
+   :param reverse_time: If `True`, a time-reversed network should be considered. The default is
+                        `False`.
+   :type reverse_time: bool, optional
+   :param solution_limit: If given, the result is limited to the given number of solutions.
+                          Default: `None`.
+   :type solution_limit: int, optional
+   :param ensure_subspace: If given, the result is restricted to the given subspace. Default: `None`.
+   :type ensure_subspace: BooleanSpace, optional
+   :param avoid_subspaces: If given, the result is restricted to not be in the given subspaces. Default:
+                           `None`.
+   :type avoid_subspaces: list[BooleanSpace], optional
+   :param optimize_source_variables: Desingates which variables should be treated as input nodes for the
+                                     purposes of trap space identification. Fixed values of these variables
+                                     will be considered together, reducing the number of trap spaces
+                                     associated with `k` source nodes to `2**k` from `(2**k)*k!`.
+   :type optimize_source_variables: list[str], optional
+
+   :returns: The :class:`BooleanSpace<biobalm.types.BooleanSpace>` objects
+             describing the trap spaces that solve the specified problem.
+   :rtype: list[BooleanSpace]
+
+
+.. py:data:: BooleanSpace
+   :type:  TypeAlias
+   :value: dict[str, Literal[0, 1]]
+
+
+   Type alias for `dict[str, Literal[0, 1]]`. Represents a Boolean subspace, which is defined by a set of fixed node values.
+
+.. py:class:: NodeData
+
+   Bases: :py:obj:`TypedDict`
+
+
+   A `TypedDict` class that stores the data of a succession diagram node (see :class:`biobalm.SuccessionDiagram`).
+
+   Returned from :func:`biobalm.SuccessionDiagram.node_data`.
+   However, this class is not directly used at runtime, and only exists for static type-checking.
+   Instead, at runtime, an untyped dictionary is used because that is what is returned by `networkx.DiGraph.nodes(data=True)`.
+
+   Initialize self.  See help(type(self)) for accurate signature.
+
+
+   .. py:attribute:: depth
+      :type:  int
+
+      The depth of the node in the succession diagram rooted directed acyclic
+      graph. In cases of multiple paths from the root to the reference node,
+      the longest is used.
+
+
+   .. py:attribute:: space
+      :type:  BooleanSpace
+
+      The sub-space that the node represents (this subspace will always be a
+      trap space).
+
+
+   .. py:attribute:: expanded
+      :type:  bool
+
+      Whether the node has been expanded yet or not (`biobalm` builds the
+      succession diagram lazily).
+
+      If `expanded=False`, the node *must not* have any successor nodes.
+      If `expanded=True`, the node must have all its successors computed
+      and included in the succession diagram.
+
+
+   .. py:attribute:: percolated_network
+      :type:  biodivine_aeon.BooleanNetwork | None
+
+      The AEON `BooleanNetwork` that has variables fixed and percolated
+      according to the node `space`. Constant variables are then fully
+      eliminated.
+
+      If `None`, this has not been computed yet (`SuccessionDiagram.network` can be
+      often used instead).
+
+
+   .. py:attribute:: percolated_petri_net
+      :type:  networkx.DiGraph | None
+
+      The Petri net representation of the network rules percolated to the
+      node's sub-space (i.e. a Petri net encoding of the `percolated_network`).
+      Constant variables are fully eliminated.
+
+      If `None`, this has not been computed yet (`SuccessionDiagram.petri_net` can be
+      often used instead).
+
+
+   .. py:attribute:: percolated_nfvs
+      :type:  list[str] | None
+
+      An NFVS of the `percolated_network`.
+
+      Note that this contains no variables that are fixed by the node `space`.
+      Also, there is no guarantee that this is a subset of `SuccessionDiagram.nfvs`.
+
+      If `None`, this has not been computed yet (`SuccessionDiagram.nfvs` can be
+      often used instead).
+
+
+   .. py:attribute:: attractor_candidates
+      :type:  list[BooleanSpace] | None
+
+      List of states that cover all network attractors in the node's sub-space
+      (excluding child nodes, if known).
+
+      Note that each complex/cyclic attractor can be covered by more than
+      one state, but each attractor has to be covered by at least one state. Furthermore,
+      outside of minimal trap spaces, some candidate states can cover zero attractors.
+      That is, even if the candidate set is not empty, it does not guarantee that
+      the non-minimal sub-space contains attractors.
+
+      If `None`, these have not been computed, and the node may or may not
+      have associated attractors.
+
+
+   .. py:attribute:: attractor_seeds
+      :type:  list[BooleanSpace] | None
+
+      List of states that one-to-one correspond to network attractors in the node's
+      sub-space (excluding child nodes, if known).
+
+      This is very similar to `attractor_candidates`, but here, it is guaranteed
+      that each attractor is represented by exactly one state.
+
+      If `None`, these have not been computed, and the node may or may not
+      have associated attractors.
+
+
+   .. py:attribute:: attractor_sets
+      :type:  list[biodivine_aeon.VertexSet] | None
+
+      List of attractors that are present in the node's sub-space (excluding
+      child nodes, if known).
+
+      Each attractor is represented symbolically using `biodivine_aeon.VertexSet`.
+
+      Note that for fixed-point attractors, the attractor set is effectively
+      equivalent to the attractor seed. However, for complex attractors, this
+      set containes *all* the attractor states as opposed to just one. Hence it
+      is harder to compute, but can be used to analyze things like the average
+      value of each variable in the attractor states, or the presence of
+      particular oscillation patterns.
+
+      If `None`, these have not been computed, and the node may or may not
+      have associated attractors.
+
+
+.. py:class:: SuccessionDiagramState
+
+   Bases: :py:obj:`TypedDict`
+
+
+   A `TypedDict` class that stores the state of a succession diagram (see :class:`biobalm.SuccessionDiagram`).
+
+   Initialize self.  See help(type(self)) for accurate signature.
+
+
+   .. py:attribute:: network_rules
+      :type:  str
+
+      The network rules as an `.aeon` formatted string.
+
+
+   .. py:attribute:: petri_net
+      :type:  networkx.DiGraph
+
+      The Petri net representation of the network rules (see :mod:`biobalm.petri_net_translation`).
+
+
+   .. py:attribute:: nfvs
+      :type:  list[str] | None
+
+      The negative feedback vertex set used for attractor detection.
+
+
+   .. py:attribute:: dag
+      :type:  networkx.DiGraph
+
+      The directed acyclic graph representation of the succession diagram structure, including
+      the :class:`biobalm.types.NodeData` of each node.
+
+
+   .. py:attribute:: node_indices
+      :type:  dict[int, int]
+
+      A dictionary mapping subspace keys to their positions in the succession
+      diagram (see :func:`biobalm.space_utils.space_unique_key`).
+
+
+   .. py:attribute:: config
+      :type:  SuccessionDiagramConfiguration
+
+      "Global" configuration of a succession diagram.
+
+
+.. py:class:: SuccessionDiagramConfiguration
+
+   Bases: :py:obj:`TypedDict`
+
+
+   Describes the configuration options of a `SuccessionDiagram`.
+
+   Use :meth:`SuccessionDiagram.default_config` to create a
+   configuration dictionary pre-populated with default values.
+
+   Initialize self.  See help(type(self)) for accurate signature.
+
+
+   .. py:attribute:: debug
+      :type:  bool
+
+      If `True`, the `SuccessionDiagram` will print messages
+      describing the progress of the running operations.
+
+      [Default: False]
+
+
+   .. py:attribute:: max_motifs_per_node
+      :type:  int
+
+      Limit on the number of stable motifs explored for one node of a succession
+      diagram. If this limit is exceeded during node expansion, a `RuntimeError`
+      is raised and the node remains unexpanded.
+
+      This limit is in place mainly to avoid surprising out of memory errors,
+      because currently there is no logging mechanism that would report the
+      number of stable motifs gradually.
+
+      [Default: 100_000]
+
+
+   .. py:attribute:: nfvs_size_threshold
+      :type:  int
+
+      For networks larger than this threshold, we only run FVS detection
+      instead of NFVS detection. This is still correct, but can produce
+      a larger node set.
+
+
+      There is a trade-off between the speed gains from a smaller node set
+      to consider and the cost of determining which FVS nodes only
+      intersect negative cycles to find an NFVS subset. Typically,
+      for smaller networks, the trade-off is in favor of
+      computing a smaller NFVS.
+
+
+   .. py:attribute:: pint_goal_size_limit
+      :type:  int
+
+      Pint is called using command line and can only accept a limited number of arguments.
+      This limit is applied when constructing goals to avoid reaching this argument limit.
+
+      The limit currently applies to the total number of literals that can be used to
+      represent a goal.
+
+      The default value was empirically tested as safe on Debian linux, but other operating
+      systems may need a different limit to stay safe. Nevertheless, this should not be
+      an issue on smaller/simpler networks.
+
+
+   .. py:attribute:: attractor_candidates_limit
+      :type:  int
+
+      If more than `attractor_candidates_limit` states are produced during the
+      attractor detection process, then the process fails with a `RuntimeError`.
+      This is mainly to avoid out-of-memory errors or crashing `clingo`.
+
+
+   .. py:attribute:: retained_set_optimization_threshold
+      :type:  int
+
+      If there are more than this amount of attractor candidates, the attractor
+      detection process will try to optimize the retained set using ASP (if enabled).
+
+
+   .. py:attribute:: minimum_simulation_budget
+      :type:  int
+
+      The minimum number of simulation steps per network variable that is guaranteed to be
+      spent on eliminating attractor candidate states. That is, if budget is `1_000` and
+      the network has `200` variables, the total number of allowed
+      simulation steps is `200_000`.
+
+      Note that this is a budget that applies to all candidates collectively. So if the number
+      of candidates is larger, the number of steps per candidate is proportionally smaller.
+      However, this budget only applies when simulation has not been able to make progress
+      in the recent round. That is, if simulation has actively eliminated some candidates in
+      the recent round, it will still continue regardless of the budget limit.
+
+
+.. py:class:: SuccessionDiagram(network: biodivine_aeon.BooleanNetwork, config: biobalm.types.SuccessionDiagramConfiguration | None = None)
+
+   Succession diagram of a Boolean network.
+
+   This encodes relationships between minimal trap spaces and can be used for
+   attractor detection and control. Note that the succession diagram is
+   expanded lazily, so it is not built until `build` or a similar method is
+   called.
+
+
+   .. rubric:: Examples
+
+   >>> import biobalm
+   >>> sd = biobalm.SuccessionDiagram.from_rules("""
+   ...     A, B
+   ...     B, A & C
+   ...     C, !A | B
+   ... """)
+   >>> print(sd.summary()) # not built yet!
+   Succession Diagram with 1 nodes and depth 0.
+   State order: A, B, C
+   <BLANKLINE>
+   Attractors in diagram:
+   <BLANKLINE>
+   >>> sd.build()
+   >>> print(sd.summary()) # now it's built
+   Succession Diagram with 3 nodes and depth 1.
+   State order: A, B, C
+   <BLANKLINE>
+   Attractors in diagram:
+   <BLANKLINE>
+   minimal trap space 001
+   ...................001
+   <BLANKLINE>
+   minimal trap space 111
+   ...................111
+   <BLANKLINE>
+
+
+   .. py:attribute:: network
+      :type:  biodivine_aeon.BooleanNetwork
+
+      The Boolean network represented as a `biodivine_aeon.BooleanNetwork` object.
+
+
+   .. py:attribute:: symbolic
+      :type:  biodivine_aeon.AsynchronousGraph
+
+      The symbolic representation of the network using `biodivine_aeon.AsynchronousGraph`.
+
+
+   .. py:attribute:: petri_net
+      :type:  networkx.DiGraph
+
+      The Petri net representation of the network (see :mod:`petri_net_translation<biobalm.petri_net_translation>`).
+
+
+   .. py:attribute:: nfvs
+      :type:  list[str] | None
+      :value: None
+
+
+      The negative feedback vertex set of `SuccessionDiagram.network`, or `None` if not computed yet.
+
+
+   .. py:attribute:: dag
+      :type:  networkx.DiGraph
+
+      The directed acyclic graph (DAG) representation of the succession
+      diagram structure.
+
+
+   .. py:attribute:: node_indices
+      :type:  dict[int, int]
+
+      A dictionary mapping subspace keys to their positions in the succession
+      diagram (see :func:`biobalm.space_utils.space_unique_key`).
+
+
+   .. py:method:: default_config() -> biobalm.types.SuccessionDiagramConfiguration
+      :staticmethod:
+
+
+
+   .. py:method:: from_rules(rules: str, format: Literal['bnet', 'aeon', 'sbml'] = 'bnet', config: biobalm.types.SuccessionDiagramConfiguration | None = None) -> SuccessionDiagram
+      :staticmethod:
+
+
+      Generate a succession diagram from the given string.
+
+      :param rules: The string representation of the network rules.
+      :type rules: str
+      :param format: The format of the string. One of `"bnet"`, `"aeon"`, or `"sbml"`.
+                     Defaults to `"bnet"`.
+      :type format: Literal['bnet', 'aeon', 'sbml']
+      :param config: An optional configuration object with internal settings
+                     and default values.
+      :type config: SuccessionDiagramConfiguration | None
+
+      :returns: The generated succession diagram. Initially unexpanded.
+      :rtype: SuccessionDiagram
+
+
+
+   .. py:method:: from_file(path: str, config: biobalm.types.SuccessionDiagramConfiguration | None = None) -> SuccessionDiagram
+      :staticmethod:
+
+
+      Read a `BooleanNetwork` from the given file path. The format is automatically inferred from
+      the file extension.
+
+      Optionally, you can also supply a configuration object to customize the
+      resulting succession diagram.
+
+
+
+   .. py:method:: expanded_attractor_candidates() -> dict[int, list[biobalm.types.BooleanSpace]]
+
+      Attractor candidates for each expanded node. The candidate list is
+      computed for nodes where it is not known yet.
+
+      Collectively, for every attractor in every expanded node, this returns
+      at least one candidate state for said attractor. However, for complex
+      attractors, there can be more than one candidate state, and there can
+      be candidates that are not contained in any attractor.
+
+      *If called before the `SuccessionDiagram` is fully built, this will not
+      be a complete accounting of attractors, since any node that isn't expanded
+      is not included in the result.*
+
+      .. seealso::
+
+         - :meth:`expanded_attractor_seeds<SuccessionDiagram.expanded_attractor_seeds>`
+         - :meth:`expanded_attractor_seeds<SuccessionDiagram.expanded_attractor_sets>`
+         - :meth:`expanded_attractor_seeds<SuccessionDiagram.node_attractor_candidates>`
+         - :meth:`expanded_attractor_seeds<SuccessionDiagram.node_attractor_seeds>`
+         - :meth:`expanded_attractor_seeds<SuccessionDiagram.node_attractor_sets>`
+
+      :returns: Each key is the id of an expanded succession diagram node, whose
+                corresponding value is a list of attractor candidates for that node. Note
+                that one succession diagram node can have multiple attractors. Ordering
+                of the lists in the returned dictionary is not guaranteed.
+      :rtype: dict[int,list[BooleanSpace]]
+
+      .. rubric:: Example
+
+      >>> import biobalm
+      >>> sd = biobalm.SuccessionDiagram.from_rules("""
+      ...     A, B
+      ...     B, A & C
+      ...     C, !A | B
+      ... """)
+      >>> sd.build()
+      >>> eas = sd.expanded_attractor_candidates()
+      >>> for id, atts in sorted(eas.items()):
+      ...     for x in atts:
+      ...         print(f"{id}: {dict(sorted(x.items()))}")
+      1: {'A': 0, 'B': 0, 'C': 1}
+      2: {'A': 1, 'B': 1, 'C': 1}
+
+
+
+   .. py:method:: expanded_attractor_seeds() -> dict[int, list[biobalm.types.BooleanSpace]]
+
+      Attractor seeds for each expanded node. The seed list is
+      computed for nodes where it is not known yet.
+
+      Collectively, for every attractor in every expanded node, this returns
+      exactly one seed state for said attractor.
+
+      *If called before the `SuccessionDiagram` is fully built, this will not
+      be a complete accounting of attractors, since any node that isn't expanded
+      is not included in the result.*
+
+      .. seealso::
+
+         - :meth:`expanded_attractor_seeds<SuccessionDiagram.expanded_attractor_candidates>`
+         - :meth:`expanded_attractor_seeds<SuccessionDiagram.expanded_attractor_sets>`
+         - :meth:`expanded_attractor_seeds<SuccessionDiagram.node_attractor_candidates>`
+         - :meth:`expanded_attractor_seeds<SuccessionDiagram.node_attractor_seeds>`
+         - :meth:`expanded_attractor_seeds<SuccessionDiagram.node_attractor_sets>`
+
+      :returns: Each key is the id of an expanded succession diagram node, whose
+                corresponding value is a list of attractor seeds for that node. Note
+                that one succession diagram node can have multiple attractors. Ordering
+                of the lists in the returned dictionary is not guaranteed.
+      :rtype: dict[int,list[BooleanSpace]]
+
+      .. rubric:: Example
+
+      *Note that for this simple network, attractor candidates and attractor
+      seeds are the same states.*
+
+      >>> import biobalm
+      >>> sd = biobalm.SuccessionDiagram.from_rules("""
+      ...     A, B
+      ...     B, A & C
+      ...     C, !A | B
+      ... """)
+      >>> sd.build()
+      >>> eas = sd.expanded_attractor_seeds()
+      >>> for id, atts in sorted(eas.items()):
+      ...     for x in atts:
+      ...         print(f"{id}: {dict(sorted(x.items()))}")
+      1: {'A': 0, 'B': 0, 'C': 1}
+      2: {'A': 1, 'B': 1, 'C': 1}
+
+
+
+   .. py:method:: expanded_attractor_sets() -> dict[int, list[biodivine_aeon.VertexSet]]
+
+      Attractor sets for each expanded node. The sets are
+      computed for nodes where they are not known yet.
+
+      These sets represent the complete collection of attractor states in each
+      expanded node. For fixed-point attractors, this is effectively equivalent
+      to the attractor seeds. For complex attractors, this set contains the
+      full attractor. Hence, it is harder to compute but can facilitate richer
+      post-processing and analysis.
+
+      *If called before the `SuccessionDiagram` is fully built, this will not
+      be a complete accounting of attractors, since any node that isn't expanded
+      is not included in the result.*
+
+      .. seealso::
+
+         - :meth:`expanded_attractor_seeds<SuccessionDiagram.expanded_attractor_candidates>`
+         - :meth:`expanded_attractor_seeds<SuccessionDiagram.expanded_attractor_seeds>`
+         - :meth:`expanded_attractor_seeds<SuccessionDiagram.node_attractor_candidates>`
+         - :meth:`expanded_attractor_seeds<SuccessionDiagram.node_attractor_seeds>`
+         - :meth:`expanded_attractor_seeds<SuccessionDiagram.node_attractor_sets>`
+
+      :returns: Each key is the id of an expanded succession diagram node, whose
+                corresponding value is a list of attractor sets for that node. Note
+                that one succession diagram node can have multiple attractors. Ordering
+                of the lists in the returned dictionary is not guaranteed.
+      :rtype: dict[int,list[biodivine_aeon.VertexSet]]
+
+      .. rubric:: Example
+
+      >>> import biobalm
+      >>> sd = biobalm.SuccessionDiagram.from_rules("""
+      ...     A, B
+      ...     B, A & C
+      ...     C, !A | B
+      ... """)
+      >>> sd.build()
+      >>> eas = sd.expanded_attractor_sets()
+      >>> for id, atts in sorted(eas.items()):
+      ...     for x in atts:
+      ...         print(f"{id}: {x}")
+      1: VertexSet(cardinality=1, symbolic_size=5)
+      2: VertexSet(cardinality=1, symbolic_size=5)
+
+
+
+   .. py:method:: summary() -> str
+
+      Return a summary of the succession diagram as a string.
+
+
+
+   .. py:method:: root() -> int
+
+      Return the ID of the root node.
+
+
+
+   .. py:method:: depth() -> int
+
+      Compute the maximal node depth in the diagram.
+
+      Depth is counted from zero (root has depth zero).
+
+
+
+   .. py:method:: node_ids() -> Iterator[int]
+
+      Iterator over all available node IDs.
+
+
+
+   .. py:method:: stub_ids() -> Iterator[int]
+
+      Iterator over all node IDs that are currently *not* expanded.
+
+
+
+   .. py:method:: expanded_ids() -> Iterator[int]
+
+      Iterator over all node IDs that are currently expanded.
+
+
+
+   .. py:method:: minimal_trap_spaces() -> list[int]
+
+      List of node IDs that represent the minimal trap spaces within this
+      succession diagram.
+
+      Note that stub nodes do not count as minimal!
+
+
+
+   .. py:method:: find_node(node_space: biobalm.types.BooleanSpace) -> int | None
+
+      Return the ID of the node matching the provided `node_space`, or `None`
+      if no such node exists in this succession diagram.
+
+      :param node_space: The space of the node to find.
+      :type node_space: BooleanSpace
+
+      :returns: The ID of the node matching the provided `node_space`, or `None`
+                if no such node exists in this succession diagram.
+      :rtype: int | None
+
+
+
+   .. py:method:: is_subgraph(other: SuccessionDiagram) -> bool
+
+      Returns `True` if this succession diagram is a subgraph of the `other`
+      succession diagram.
+
+      Note that this function works even for diagrams based on different
+      Boolean networks, as long as both succession diagrams only depend on the
+      same subset of network variables.
+
+      WARNING: This does not take into account the stable motifs on individual
+      edges. Just the subspaces associated with nodes and the presence of
+      edges between nodes.
+
+      :param other: The other succession diagram.
+      :type other: SuccessionDiagram
+
+      :returns: `True` if this succession diagram is a subgraph of the `other`
+                succession diagram.
+      :rtype: bool
+
+
+
+   .. py:method:: is_isomorphic(other: SuccessionDiagram) -> bool
+
+      Returns `True` if the two succession diagrams are isomorphic.
+
+      Note that this function works even for diagrams based on different
+      Boolean networks, as long as both succession diagrams only depend on the
+      same subset of network variables.
+
+      WARNING: This does not take into account the stable motifs on individual
+      edges. Just the subspaces associated with nodes and the presence of
+      edges between nodes.
+
+      :param other: The other succession diagram.
+      :type other: SuccessionDiagram
+
+      :returns: `True` if the two succession diagrams are isomorphic.
+      :rtype: bool
+
+
+
+   .. py:method:: node_data(node_id: int) -> biobalm.types.NodeData
+
+      Get the data associated with the provided `node_id`.
+
+      Returns a `NodeData` object with the following attributes:
+
+      - `depth`: The depth of the node.
+      - `space`: The sub-space of the node.
+      - `expanded`: Whether the node is expanded or not.
+      - `percolated_network`: [`None` if not computed] The percolation of
+      `SuccessionDiagram.network` with respect to the node's `space`.
+      - `percolated_petri_net`: [`None` if not computed] The percolation of
+      `SuccessionDiagram.petri_net` with respect to the node's `space`.
+      - `percolated_nfvs`: [`None` if not computed] The NFVS of `percolated_network`.
+      - `attractor_candidates`: [`None` if not computed] A collection of states
+      that collectively cover every attractor of this node.
+      - `attractor_seeds`: [`None` if not computed] A collection of states
+      one-to-one corresponding to the attractors of this node.
+      - `attractor_sets`: [`None` if not computed] A complete collection of
+      attractors of this node.
+
+      See :class:`biobalm.types.NodeData` for more information.
+
+      :param node_id: The ID of the node.
+      :type node_id: int
+
+      :returns: The data associated with the provided `node_id`. Note that at
+                runtime, this object is an untyped dictionary.
+      :rtype: NodeData
+
+
+
+   .. py:method:: reclaim_node_data()
+
+      Removes non-essential data from the `NodeData` dictionary of each node.
+
+      This method can be used to reduce the memory footprint of the succession
+      diagram, especially before serialization. However, note that this can
+      also slow down subsequent computations if the erased data needs
+      to be re-computed.
+
+      The method removes the `percolated_network`, `percolated_petri_net`,
+      and the `percolated_nfvs`. Furthermore, if `attractor_seeds` are known,
+      it erases the `attractor_candidates`, since seeds can be used for the
+      same tasks.
+
+
+
+   .. py:method:: node_is_minimal(node_id: int) -> bool
+
+      True if the node represents a minimal trap space.
+
+      :param node_id: The ID of the node.
+      :type node_id: int
+
+      :returns: `True` if the node is expanded and it has no successors, i.e. it is a
+                minimal trap space.
+      :rtype: bool
+
+
+
+   .. py:method:: node_successors(node_id: int, compute: bool = False) -> list[int]
+
+      Return the successor nodes for the given `node_id`.
+
+      If the node is already expanded, known results are simply returned. If
+      the node is not expanded, but `compute` is set to `True`, then the node
+      is expanded and the newly computed results are returned. If the node is
+      not expanded and `compute` is set to `False`, the method raises a
+      `KeyError` exception.
+
+      The default behaviour intentionally does not compute successors to
+      prevent "accidental complexity".
+
+      WARNING: We do not guarantee the order of the returned nodes. If you
+      need the successors in a repeatable order, you should sort the list
+      manually.
+
+      Also note that if the given `node_id` already has associated attractor
+      data but is not expanded, this data will be deleted as it is no longer
+      up to date.
+
+      :param node_id: The ID of the node.
+      :type node_id: int
+      :param compute: Whether to compute the successors if they are not already known.
+      :type compute: bool
+
+      :returns: The list of successor node ids.
+      :rtype: list[int]
+
+
+
+   .. py:method:: node_attractor_candidates(node_id: int, compute: bool = False, greedy_asp_minification: bool = True, simulation_minification: bool = True, pint_minification: bool = False) -> list[biobalm.types.BooleanSpace]
+
+      Return the list of attractor candidate states for the given `node_id`.
+
+      If attractor candidates are not computed but seeds are, returns
+      attractor seeds, as these are also valid as candidate states, but
+      even more precise.
+
+      Similar to :meth:`node_successors`, the method either computes the
+      data if unknown, or throws an exception, depending on the `compute`
+      flag. If `compute` is set to `True`, additional flags can be used
+      to adjust the candidate identification process (see *Parameters*).
+
+      Note that you can compute attractor candidates for nodes that are not expanded,
+      but (a) multiple unexpanded nodes can contain the same attractor, and hence also
+      the same/similar candidates (i.e. you can "discover" the same attractor in multiple
+      unexpanded nodes, if the nodes intersect), and (b) this data is erased if the
+      node is later expanded.
+
+      :param node_id: The ID of the node.
+      :type node_id: int
+      :param compute: Whether to compute the attractor candidates if they are not already known.
+      :type compute: bool
+      :param greedy_asp_minification: Indicate that the initial candidate set should be first greedily minified
+                                      through repeated ASP queries. [Default: True]
+      :type greedy_asp_minification: bool
+      :param simulation_minification: Indicate that the candidate set should be refined through stochastic
+                                      simulation. [Default: True]
+      :type simulation_minification: bool
+      :param pint_minification: Indicate that the candidate set should be refined through reachability
+                                analysis using `pint`. Only enable this option if you actually have `pint`
+                                installed (it is an optional dependency). [Default: False]
+      :type pint_minification: bool
+
+      :returns: The list of attractor candidate states.
+      :rtype: list[BooleanSpace]
+
+
+
+   .. py:method:: node_attractor_seeds(node_id: int, compute: bool = False) -> list[biobalm.types.BooleanSpace]
+
+      Return the list of attractor seed states for the given `node_id`.
+
+      Similar to :meth:`node_successors`, the method either computes the
+      data if unknown, or throws an exception, depending on the `compute`
+      flag.
+
+      Note that the same considerations regarding attractors in unexpanded
+      nodes apply as for :meth:`node_attractor_candidates`.
+
+      :param node_id: The ID of the node.
+      :type node_id: int
+      :param compute: Whether to compute the attractor seeds if they are not already known.
+      :type compute: bool
+
+      :returns: The list of attractor seed states.
+      :rtype: list[BooleanSpace]
+
+
+
+   .. py:method:: node_attractor_sets(node_id: int, compute: bool = False) -> list[biodivine_aeon.VertexSet]
+
+      Return the list of attractor sets for the given `node_id`.
+
+      Similar to :meth:`node_successors`, the method either computes the
+      data if unknown, or throws an exception, depending on the `compute`
+      flag.
+
+      Note that the same considerations regarding attractors in unexpanded
+      nodes apply as for :meth:`node_attractor_candidates`.
+
+      :param node_id: The ID of the node.
+      :type node_id: int
+      :param compute: Whether to compute the attractor sets if they are not already known.
+      :type compute: bool
+
+      :returns: The list of attractor sets.
+      :rtype: list[biodivine_aeon.VertexSet]
+
+
+
+   .. py:method:: node_percolated_nfvs(node_id: int, compute: bool = False) -> list[str]
+
+      Approximate minimum negative feedback vertex set on the Boolean network
+      percolated to the node's sub-space.
+
+      Similar to :meth:`node_successors`, the method either computes the
+      data if unknown, or throws an exception, depending on the `compute`
+      flag.
+
+      See :func:`biobalm.interaction_graph_utils.feedback_vertex_set` for
+      further details.
+
+      :param node_id: The ID of the node.
+      :type node_id: int
+      :param compute: Whether to compute the node NFVS if it is not already known.
+      :type compute: bool
+
+      :returns: The negative feedback vertex set, as a list of node names.
+      :rtype: list[str]
+
+
+
+   .. py:method:: node_percolated_network(node_id: int, compute: bool = False) -> biodivine_aeon.BooleanNetwork
+
+      The Boolean network percolated to the node's sub-space, with
+      constant variables removed.
+
+      Similar to :meth:`node_successors`, the method either computes the
+      data if unknown, or throws an exception, depending on the `compute`
+      flag.
+
+      :param node_id: The ID of the node.
+      :type node_id: int
+      :param compute: Whether to compute the node NFVS if it is not already known.
+      :type compute: bool
+
+      :returns: The percolated Boolean network.
+      :rtype: biodivine_aeon.BooleanNetwork
+
+
+
+   .. py:method:: node_percolated_petri_net(node_id: int, compute: bool = False, parent_id: int | None = None) -> networkx.DiGraph
+
+      The Petri net representation of the Boolean network percolated to the
+      node's sub-space (with constant variables removed).
+
+      Similar to :meth:`node_successors`, the method either computes the
+      data if unknown, or throws an exception, depending on the `compute`
+      flag.
+
+      :param node_id: The ID of the node.
+      :type node_id: int
+      :param compute: Whether to compute the node NFVS if it is not already known.
+      :type compute: bool
+      :param parent_id: If given, the percolation process starts with the Petri net of the given
+                        parent node (if computed). If parent is not given, the percolation starts
+                        with `SuccessionDiagram.petri_net`, which can be slower but yields the
+                        same result.
+      :type parent_id: int | None
+
+      :returns: The percolated Boolean network.
+      :rtype: networkx.DiGraph
+
+
+
+   .. py:method:: edge_stable_motif(parent_id: int, child_id: int, reduced: bool = False) -> biobalm.types.BooleanSpace
+
+      Return the stable motif for the given parent-child edge.
+
+      If `reduced` is set to `False` (default), the unpercolated stable
+      motif trap space corresponding to the child node is returned; this
+      includes the nodes that are fixed in the percolated trap space of the
+      parent node. If `reduced` is set to `True`, the nodes fixed in the
+      parent are removed (and thus the reduced stable motif is not a trap
+      space of the original network, but is a maximal trap space in the
+      network reduced by the parent node).
+
+      :param parent_id: The ID of the parent node.
+      :type parent_id: int
+      :param child_id: The ID of the child node.
+      :type child_id: int
+      :param reduced: Whether to return the reduced stable motif.
+      :type reduced: bool
+
+      :returns: The stable motif (maximal trap space) represented by the edge.
+      :rtype: BooleanSpace
+
+
+
+   .. py:method:: component_subdiagram(component_variables: list[str], node_id: int | None = None) -> SuccessionDiagram
+
+      Return an *unexpanded* `SuccessionDiagram` that is restricted to
+      a subnetwork induced by the provided `component_variables`.  Furthermore,
+      If `node_id` is given, the subnetwork is first percolated to the
+      subspace of the specified node.
+
+      The `component_variables` must be backward-closed in the considered network
+      (i.e. either the full network, or the percolated network if `node_id` is given),
+      meaning there is no variable outside this list that regulates any variable in the
+      subnetwork. If this is not satisfied, the function will fail while
+      creating the subnetwork.
+
+      Also note that the symbolic encoding of the new network is not
+      compatible with the encoding of the original network, because the
+      underlying networks have different sets of variables.
+
+      :param component_variables: Names of variables which induce the subnetwork of the resulting
+                                  succession diagram.
+      :type component_variables: list[str]
+      :param node_id: The ID of a succession diagram node that will define a subspace
+                      to which the subnetwork is percolated. If not given, the full
+                      network is considered.
+      :type node_id: int | None
+
+      :returns: An unexpanded succession diagram of the subnetwork.
+      :rtype: SuccessionDiagram
+
+
+
+   .. py:method:: source_scc_subdiagrams(node_id: int | None = None) -> Iterator[SuccessionDiagram]
+
+      Return unexpanded subdiagrams for the source SCCs in a node subspace.
+
+      Note that the symbolic encoding of the new network is not
+      compatible with the encoding of the original network, because the
+      underlying networks have different sets of variables.
+
+      :param node_id: The ID of a succession diagram node that will define a subspace on
+                      which the subnetworks should be considered. By default, the root node
+                      is used.
+      :type node_id: int | None
+
+      :returns: An iterator over unexpanded succession diagrams of the subnetwork.
+      :rtype: Iterator[SuccessionDiagram]
+
+
+
+   .. py:method:: build()
+
+      Expand the succession diagram and search for attractors using default methods.
+
+
+
+   .. py:method:: expand_scc(find_motif_avoidant_attractors: bool = True) -> bool
+
+      Expand the succession diagram using the source SCC method.
+
+
+
+   .. py:method:: expand_block(find_motif_avoidant_attractors: bool = True) -> bool
+
+      Expand the succession diagram using the source block method.
+
+      There is a minor difference in behavior depending on `find_motif_avoidant_attractors`.
+      If set to `False`, the expansion only expands one "source block" for each node,
+      without checking any attractor properties. If set to `True`, the expansion might
+      expand some nodes fully to uncover nodes that precisely cover motif
+      avoidant attractors.
+
+
+
+   .. py:method:: expand_bfs(node_id: int | None = None, bfs_level_limit: int | None = None, size_limit: int | None = None) -> bool
+
+      Explore the succession diagram in a BFS manner.
+
+      If `node_id` is given, initiate BFS from this node. Otherwise use root.
+      If `bfs_level_limit` is given, this is the last "level" (distance from
+      the initial node) of nodes that should be expanded (any subsequent child
+      nodes are left unexplored).
+
+      If `size_limit` is given, the procedure stops once `SuccessionDiagram`
+      exceeds the given size.
+
+      With default settings, the method will explore the whole succession
+      diagram without any restrictions.
+
+      The method returns `True` if the whole exploration was completed and
+      `False` if it was terminated early based on one of the aforementioned
+      conditions.
+
+      Note that the procedure also explores nodes that are already expanded.
+      I.e. if all nodes at levels 0,1,2 are expanded, but there are stub nodes
+      on level 3, the procedure will still discover and expand these stub
+      nodes (assuming sufficient level and size limit).
+
+      Also note that the `size_limit` is only a soft limit: for each node, we
+      always have to create all child nodes when expanding it. Hence the
+      procedure can only check the condition in between expanding new nodes.
+
+
+
+   .. py:method:: expand_dfs(node_id: int | None = None, dfs_stack_limit: int | None = None, size_limit: int | None = None) -> bool
+
+      Similar to `expand_bfs`, but uses DFS instead of BFS.
+
+      The only major difference is the `dfs_stack_limit` which restricts the
+      size of the DFS stack. Nodes that would appear "deeper" in the stack
+      than this limit are left unexpanded. Note that this stack size is
+      technically *some* form of distance from the initial node, but not
+      necessarily the minimal distance.
+
+
+
+   .. py:method:: expand_minimal_spaces(size_limit: int | None = None) -> bool
+
+      Expands the succession diagram in a way that guarantees every minimal
+      trap space to be reachable from the root node, but otherwise (greedily)
+      avoids unnecesary expansion of nodes whenever possible.
+
+      The algorithm is loosely based on `expand_bfs` implementation, but on
+      each BFS level only expands the first node that still contains some
+      minimal trap space not covered by a previously expanded node at that
+      level.
+
+      The resulting succession diagram construction is deterministic, but can
+      vary if some nodes are already expanded initially. In such case, the
+      procedure still tries to avoid expanding unnecessary nodes, which means
+      existing expanded nodes can be prioritised over the "canonical" ones.
+
+
+
+   .. py:method:: expand_attractor_seeds(size_limit: int | None = None) -> bool
+
+      Expands the succession diagram such that for every asynchronous
+      attractor, there is at least one expanded trap space which is the
+      minimal trap space containing this attractor. In other words, the
+      procedure expands the succession diagram as little as possible, but
+      ensures that every attractor is "as easy to identify" as possible.
+
+      After this procedure, it is sufficient to search for attractors in
+      expanded nodes. Note that this method does not perform exact attractor
+      identification. It is possible that some nodes are expanded spuriously
+      and the succession diagram is thus larger than necessary.
+
+
+
+   .. py:method:: expand_to_target(target: biobalm.types.BooleanSpace, size_limit: int | None = None) -> bool
+
+      Expands the succession diagram using BFS in such a way that only nodes
+      which intersect `target` but are not fully contained in it are expanded.
+
+      This is used for example in control, as it ensures that all possible
+      branches of the succession diagram relevant for a particular "target
+      subspace" are expanded as much as necessary, but not more.
+
+
+

@@ -1,0 +1,141 @@
+biobalm.drivers
+===============
+
+.. py:module:: biobalm.drivers
+
+.. autoapi-nested-parse::
+
+   A module which provides functions for processing the stable motif driver nodes of a Boolean network.
+
+
+
+Attributes
+----------
+
+.. autoapisummary::
+
+   biobalm.drivers.BooleanSpace
+
+
+Functions
+---------
+
+.. autoapisummary::
+
+   biobalm.drivers.percolate_space_strict
+   biobalm.drivers.find_single_node_LDOIs
+   biobalm.drivers.find_single_drivers
+
+
+Module Contents
+---------------
+
+.. py:function:: percolate_space_strict(network: biodivine_aeon.AsynchronousGraph, space: biobalm.types.BooleanSpace) -> biobalm.types.BooleanSpace
+
+   Percolates a space through a Boolean network, disregarding constants.
+
+   Returns the set of variables which become fixed as a result of fixing the
+   variables from `space` within the given `AsynchronousGraph`.
+
+   Note that the strict percolation process does not propagate constants that
+   are already fixed within the `network`, only those that are specified in
+   `space`. Also, the result only contains any *new* constants, not those that
+   are already fixed in `space`.
+
+   :param network: A symbolic representation of the Boolean network (from which state
+                   transitions can be generated) in which the percolation is performed. If
+                   needed, an `AsynchronousGraph` object can be constructed from a
+                   `BooleanNetwork` via `biodivine_aeon.AsynchronousGraph(bn)`.
+   :type network: AsynchronousGraph
+   :param space: The space to percolate.
+   :type space: BooleanSpace
+
+   :returns: The percolated space.
+   :rtype: BooleanSpace
+
+
+.. py:data:: BooleanSpace
+   :type:  TypeAlias
+   :value: dict[str, Literal[0, 1]]
+
+
+   Type alias for `dict[str, Literal[0, 1]]`. Represents a Boolean subspace, which is defined by a set of fixed node values.
+
+.. py:function:: find_single_node_LDOIs(network: biodivine_aeon.AsynchronousGraph | biodivine_aeon.BooleanNetwork) -> dict[tuple[str, int], biobalm.types.BooleanSpace]
+
+   Finds the the logical domain of influence for every single node state.
+
+   The logical domain of influence is equivalent to the set of node states that
+   become fixed after percolation. See
+   :func:`percolate_space<biobalm.space_utils.percolate_space>` for details.
+
+   This operation requires the symbolic update functions provided by an
+   `AsynchronousGraph`. If you provide a `BooleanNetwork`, the
+   `AsynchronousGraph` will be created automatically, but this can incur
+   additional overhead.
+
+   :param network: The symbolic update functions stored as a `AsynchronousGraph` or
+                   `BooleanNetwork` object from the `biodivine_aeon` library.
+   :type network: AsynchronousGraph | BooleanNetwork
+
+   :returns: The LDOI for every one-node state. The keys are `(variable, value)`
+             tuples, where `variable` is the name of the node that is fixed in the
+             state `value` (`0` or `1`). The keys are
+             :class:`BooleanSpace<biobalm.types.BooleanSpace>` objects, which are dictionaries
+             of node values describing the node states that become fixed as a result
+             of percolation.
+   :rtype: dict[tuple[str, int], BooleanSpace]
+
+   .. rubric:: Example
+
+   >>> import biobalm
+   >>> sd = biobalm.SuccessionDiagram.from_rules('A, A\nB, A')
+   >>> ldois = biobalm.drivers.find_single_node_LDOIs(sd.network)
+   >>> for k in sorted(ldois):
+   ...     print(f'{k} ==> {sorted(ldois[k].items())}')
+   ...
+   ('A', 0) ==> [('A', 0), ('B', 0)]
+   ('A', 1) ==> [('A', 1), ('B', 1)]
+   ('B', 0) ==> []
+   ('B', 1) ==> []
+
+
+.. py:function:: find_single_drivers(target_subspace: biobalm.types.BooleanSpace, network: biodivine_aeon.AsynchronousGraph | biodivine_aeon.BooleanNetwork, LDOIs: dict[tuple[str, int], biobalm.types.BooleanSpace] | None = None) -> set[tuple[str, int]]
+
+   Find all one-node drivers for a target subspace.
+
+   This operation requires the symbolic update functions provided by an
+   `AsynchronousGraph`. If you provide a `BooleanNetwork`, the
+   `AsynchronousGraph` will be created automatically, but this can incur
+   additional overhead.
+
+   :param target_subspace: A :class:`BooleanSpace<biobalm.types.BooleanSpace>` object describing the
+                           target trap space.
+   :type target_subspace: BooleanSpace
+   :param network:
+                   The symbolic update functions stored as a `AsynchronousGraph` or
+                    `BooleanNetwork` object from the `biodivine_aeon` library.
+   :type network: AsynchronousGraph | BooleanNetwork
+   :param LDOIs: A dictionary encoding the LDOI for every one-node state to be
+                 considered. The keys should be `(variable, value)` tuples, where
+                 `variable` is the name of the node that is fixed in the state `value`
+                 (`0` or `1`). The keys are
+                 :class:`BooleanSpace<biobalm.types.BooleanSpace>` objects, which are
+                 dictionaries of node values describing the node states that become fixed
+                 as a result of percolation. If not provided, the LDOI will be computed
+                 automatically for each node state using :func:`find_single_node_LDOIs`.
+   :type LDOIs: dict[tuple[str, int], BooleanSpace] | None, optional
+
+   :returns: A set of driver node states that result in the target subspace, with
+             each node state represented as a node name and value (`0` or `1`).
+   :rtype: set[tuple[str, int]]
+
+   .. rubric:: Example
+
+   >>> import biobalm
+   >>> sd = biobalm.SuccessionDiagram.from_rules('A, A\nB, A')
+   >>> drivers = biobalm.drivers.find_single_drivers({'B': 0}, sd.network)
+   >>> sorted(list(drivers))
+   [('A', 0), ('B', 0)]
+
+
